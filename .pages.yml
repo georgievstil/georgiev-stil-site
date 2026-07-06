@@ -1,0 +1,66 @@
+media:
+  input: assets/uploads
+  output: /assets/uploads
+  extensions: [jpg, jpeg, png, webp, gif, svg]
+
+content:
+  - name: catalog
+    label: Каталог (продукти)
+    type: file
+    path: data/products.json
+    fields:
+      - name: categories
+        label: Направления
+        type: object
+        list: true
+        fields:
+          - { name: id, label: "ID (латиница)", type: string }
+          - { name: name, label: Име, type: string }
+          - { name: subcategories, label: Подкатегории, type: string, list: true }
+
+      - name: products
+        label: Продукти
+        type: object
+        list: true
+        fields:
+          - { name: title, label: Заглавие, type: string }
+          - name: category
+            label: Направление
+            type: select
+            options:
+              values:
+                - { value: mebeli, label: Мебели }
+                - { value: dograma, label: Дограма }
+                - { value: shtori, label: Щори }
+                - { value: vrati, label: Врати }
+          - name: subcategory
+            label: Подкатегория
+            type: select
+            options:
+              values:
+                - Дивани
+                - Легла
+                - Спални комплекти
+                - Гардероби
+                - Секции и шкафове
+                - Трапезни маси
+                - Столове
+                - Матраци
+                - Детско обзавеждане
+                - PVC дограма
+                - Алуминиева дограма
+                - Плъзгащи системи
+                - Комарници
+                - Остъкляване на тераси
+                - Вътрешни щори
+                - Вертикални щори
+                - Хоризонтални щори
+                - Руло щори
+                - Ден и нощ
+                - Външни щори
+                - Входни врати
+                - Интериорни врати
+          - { name: image, label: Снимка, type: image }
+          - { name: desc, label: Кратко описание, type: text }
+          - { name: price, label: "Цена / надпис", type: string, default: "по запитване" }
+          - { name: featured, label: "Акцент (напред)", type: boolean, default: false }
