@@ -1,0 +1,88 @@
+# =====================================================================
+# Админ панел за ГЕРИ Мебели (Sveltia CMS / съвместим с Decap CMS)
+# ---------------------------------------------------------------------
+# Тук Гери добавя/редактира мебели и качва снимки през браузър.
+# Промените се записват директно в data/products.json и assets/uploads/.
+#
+# ВАЖНО (настройва се ЕДНОКРАТНО при пускане на сайта):
+#   1) Качи сайта в GitHub хранилище.
+#   2) Смени по-долу "repo" с твоето хранилище (потребител/име).
+#   3) Свържи GitHub OAuth (през Cloudflare Pages / Netlify / Sveltia).
+#   Подробни стъпки — виж файла PUBLISH.md в основната папка.
+# =====================================================================
+
+backend:
+  name: github
+  repo: ПОТРЕБИТЕЛ/geri-mebeli   # <-- смени с истинското GitHub хранилище
+  branch: main
+
+# Език на интерфейса
+locale: bg
+
+# Папка за качените снимки
+media_folder: "assets/uploads"
+public_folder: "/assets/uploads"
+
+collections:
+  - name: "catalog"
+    label: "Каталог"
+    files:
+      - name: "products"
+        label: "Мебели и категории"
+        file: "data/products.json"
+        description: "Добавяй и редактирай мебелите тук. Натисни 'Publish', за да се появят на сайта."
+        fields:
+          - label: "Направления"
+            name: "categories"
+            widget: "list"
+            summary: "{{fields.name}}"
+            fields:
+              - { label: "ID (само латиница, без интервали)", name: "id", widget: "string", hint: "напр. mebeli, dograma, shtori, vrati" }
+              - { label: "Име на направлението", name: "name", widget: "string" }
+
+          - label: "Продукти"
+            name: "products"
+            label_singular: "Продукт"
+            widget: "list"
+            summary: "{{fields.title}}"
+            fields:
+              - { label: "Заглавие", name: "title", widget: "string" }
+              - label: "Направление"
+                name: "category"
+                widget: "select"
+                options:
+                  - { label: "Мебели", value: "mebeli" }
+                  - { label: "Дограма", value: "dograma" }
+                  - { label: "Щори", value: "shtori" }
+                  - { label: "Врати", value: "vrati" }
+              - label: "Подкатегория"
+                name: "subcategory"
+                widget: "select"
+                hint: "Изберете подкатегория според направлението"
+                options:
+                  - "Дивани"
+                  - "Легла"
+                  - "Спални комплекти"
+                  - "Гардероби"
+                  - "Секции и шкафове"
+                  - "Трапезни маси"
+                  - "Столове"
+                  - "Матраци"
+                  - "Детско обзавеждане"
+                  - "PVC дограма"
+                  - "Алуминиева дограма"
+                  - "Плъзгащи системи"
+                  - "Комарници"
+                  - "Остъкляване на тераси"
+                  - "Вътрешни щори"
+                  - "Вертикални щори"
+                  - "Хоризонтални щори"
+                  - "Руло щори"
+                  - "Ден и нощ"
+                  - "Външни щори"
+                  - "Входни врати"
+                  - "Интериорни врати"
+              - { label: "Снимка", name: "image", widget: "image", hint: "Качи снимка на продукта (по-добре хоризонтална, поне 1000px)" }
+              - { label: "Кратко описание", name: "desc", widget: "text", required: false }
+              - { label: "Цена / надпис", name: "price", widget: "string", default: "по запитване", required: false }
+              - { label: "Акцент (показва се напред)", name: "featured", widget: "boolean", default: false, required: false }
