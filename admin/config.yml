@@ -82,7 +82,8 @@ collections:
                   - "Външни щори"
                   - "Входни врати"
                   - "Интериорни врати"
-              - { label: "Снимка", name: "image", widget: "image", hint: "Качи снимка на продукта (по-добре хоризонтална, поне 1000px)" }
-              - { label: "Кратко описание", name: "desc", widget: "text", required: false }
+              - { label: "Основна снимка", name: "image", widget: "image", hint: "Вижда се в категорията и е първа на страницата на продукта" }
+              - { label: "Още снимки", name: "gallery", widget: "image", multiple: true, required: false, hint: "Показват се на страницата на продукта" }
+              - { label: "Описание", name: "desc", widget: "text", required: false }
               - { label: "Цена / надпис", name: "price", widget: "string", default: "по запитване", required: false }
               - { label: "Акцент (показва се напред)", name: "featured", widget: "boolean", default: false, required: false }

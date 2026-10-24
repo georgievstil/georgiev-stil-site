@@ -65,8 +65,10 @@
       '<a href="tel:' + SITE.phone1tel + '" class="callbtn" aria-label="Обадете се">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
         '<span>Обадете се</span></a>' +
-      '<div class="lightbox" id="lightbox" aria-hidden="true">' +
+      '<div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="Снимка в цял екран">' +
         '<button class="lightbox__close" id="lightboxClose" aria-label="Затвори">×</button>' +
+        '<button class="lightbox__nav lightbox__nav--prev" id="lightboxPrev" aria-label="Предишна снимка">‹</button>' +
+        '<button class="lightbox__nav lightbox__nav--next" id="lightboxNext" aria-label="Следваща снимка">›</button>' +
         '<figure class="lightbox__fig"><img id="lightboxImg" src="" alt="" /><figcaption id="lightboxCap"></figcaption></figure>' +
       '</div>';
 
@@ -90,9 +92,11 @@
   var nav = document.getElementById('nav');
   var progress = document.getElementById('progress');
   var toTop = document.getElementById('toTop');
+  // страници без тъмен банер отгоре — менюто е винаги в светлия (четим) вид
+  var solidNav = document.body.dataset.nav === 'solid';
   function onScroll() {
     var y = window.scrollY || window.pageYOffset;
-    if (nav) nav.classList.toggle('scrolled', y > 60);
+    if (nav) nav.classList.toggle('scrolled', solidNav || y > 60);
     if (toTop) toTop.classList.toggle('show', y > 700);
     if (progress) {
       var h = document.documentElement.scrollHeight - window.innerHeight;
@@ -165,57 +169,134 @@
     }
   }
 
-  // ---- Lightbox ----
+  // ---- Lightbox (една снимка или поредица със стрелки) ----
   var lb = document.getElementById('lightbox');
   var lbImg = document.getElementById('lightboxImg');
   var lbCap = document.getElementById('lightboxCap');
   var lbClose = document.getElementById('lightboxClose');
-  function openLightbox(src, cap) {
-    if (!lb) return;
-    lbImg.src = src; lbImg.alt = cap || ''; lbCap.textContent = cap || '';
+  var lbPrev = document.getElementById('lightboxPrev');
+  var lbNext = document.getElementById('lightboxNext');
+  var lbSet = [], lbIndex = 0, lbTitle = '', lbOnChange = null, lbReturnFocus = null;
+  function lbShow(i) {
+    var n = lbSet.length;
+    lbIndex = ((i % n) + n) % n;
+    lbImg.src = lbSet[lbIndex];
+    lbImg.alt = lbTitle;
+    lbCap.innerHTML = escapeHtml(lbTitle) + (n > 1 ? '<small>' + (lbIndex + 1) + ' от ' + n + '</small>' : '');
+    if (lbOnChange) lbOnChange(lbIndex);
+  }
+  function openLightbox(set, index, title, onChange) {
+    if (!lb || !set || !set.length) return;
+    lbSet = set; lbTitle = title || ''; lbOnChange = onChange || null;
+    lbReturnFocus = document.activeElement;
+    lb.classList.toggle('is-single', set.length < 2);
+    lbShow(index || 0);
     lb.classList.add('open'); lb.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    lbClose.focus();
   }
   function closeLightbox() {
-    if (!lb) return;
+    if (!lb || !lb.classList.contains('open')) return;
     lb.classList.remove('open'); lb.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+    if (lbReturnFocus && lbReturnFocus.focus) lbReturnFocus.focus();
+  }
+  function isLightboxOpen() { return !!lb && lb.classList.contains('open'); }
+  // плъзгане с пръст наляво/надясно (телефон)
+  function onSwipe(el, cb) {
+    var x0 = null, y0 = 0;
+    el.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) cb(dx < 0 ? 1 : -1);
+    }, { passive: true });
   }
   if (lb) {
     lbClose.addEventListener('click', closeLightbox);
+    lbPrev.addEventListener('click', function () { lbShow(lbIndex - 1); });
+    lbNext.addEventListener('click', function () { lbShow(lbIndex + 1); });
     lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeLightbox(); });
+    onSwipe(lb, function (dir) { if (lbSet.length > 1) lbShow(lbIndex + dir); });
+    document.addEventListener('keydown', function (e) {
+      if (!isLightboxOpen()) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft' && lbSet.length > 1) lbShow(lbIndex - 1);
+      else if (e.key === 'ArrowRight' && lbSet.length > 1) lbShow(lbIndex + 1);
+    });
   }
 
   // ---- Helpers ----
   function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
-  function cardHTML(p) {
-    var img = p.image || '', price = p.price ? p.price : 'по запитване';
-    return '' +
-      '<article class="card" data-reveal data-img="' + escapeAttr(img) + '" data-cap="' + escapeAttr(p.title) + '" tabindex="0" role="button" aria-label="' + escapeAttr(p.title) + ' — уголеми">' +
-        '<div class="card__media"><img src="' + escapeAttr(img) + '" alt="' + escapeAttr(p.title) + '" loading="lazy" /></div>' +
-        '<div class="card__body">' +
-          (p.subcategory ? '<span class="card__cat">' + escapeHtml(p.subcategory) + '</span>' : '') +
-          '<h3 class="card__title">' + escapeHtml(p.title) + '</h3>' +
-          (p.desc ? '<p class="card__desc">' + escapeHtml(p.desc) + '</p>' : '') +
-          '<div class="card__foot"><span class="card__price">' + escapeHtml(price) + '</span>' +
-          '<a class="card__more" href="kontakti.html">Запитай →</a></div>' +
-        '</div>' +
-      '</article>';
-  }
-  function bindCards(scope) {
-    scope.querySelectorAll('.card').forEach(function (card) {
-      function open(e) {
-        if (e.target.closest('.card__more')) return; // линкът към контакти да работи
-        openLightbox(card.dataset.img, card.dataset.cap);
-      }
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(card.dataset.img, card.dataset.cap); }
+  // ---- Каталог: общи помощници ----
+  function loadCatalog() {
+    return fetch('data/products.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (d) {
+        d.products = withSlugs(d.products || []);
+        d.categories = d.categories || [];
+        return d;
       });
+  }
+
+  // Адрес на продукта от заглавието: „Холов ъгъл Мелиса“ → holov-agal-melisa
+  var TRANSLIT = { 'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sht','ъ':'a','ь':'y','ю':'yu','я':'ya' };
+  function slugify(s) {
+    var out = String(s || '').toLowerCase().split('').map(function (ch) {
+      return TRANSLIT.hasOwnProperty(ch) ? TRANSLIT[ch] : ch;
+    }).join('');
+    if (out.normalize) out = out.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return out.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'produkt';
+  }
+  // еднакви заглавия получават -2, -3… (редът е този от каталога, затова е еднакъв на всяка страница)
+  function withSlugs(products) {
+    var seen = {};
+    products.forEach(function (p) {
+      var base = slugify(p.title), slug = base, n = 2;
+      while (seen[slug]) slug = base + '-' + (n++);
+      seen[slug] = true;
+      p._slug = slug;
     });
+    return products;
+  }
+  function productUrl(p) { return 'produkt.html?p=' + encodeURIComponent(p._slug); }
+  function subAnchor(sub) { return 'sub-' + String(sub).replace(/\s+/g, '-'); }
+
+  // основната снимка + „Още снимки“, без празни и повторени
+  function productImages(p) {
+    var more = Array.isArray(p.gallery) ? p.gallery : (p.gallery ? [p.gallery] : []);
+    return [p.image].concat(more).filter(function (src, i, a) {
+      return typeof src === 'string' && src.trim() && a.indexOf(src) === i;
+    });
+  }
+
+  // карта в категорията: само снимка и заглавие, води към страницата на продукта
+  function cardHTML(p) {
+    var img = productImages(p)[0];
+    return '' +
+      '<a class="card" data-reveal href="' + escapeAttr(productUrl(p)) + '">' +
+        '<div class="card__media">' + (img ? '<img src="' + escapeAttr(img) + '" alt="' + escapeAttr(p.title) + '" loading="lazy" />' : '') + '</div>' +
+        '<div class="card__body"><h3 class="card__title">' + escapeHtml(p.title) + '</h3></div>' +
+      '</a>';
+  }
+
+  // запомня докъде е стигнал човек в категорията, за да го върне там с „Назад“
+  var SCROLL_KEY = 'gs-scroll:' + location.pathname;
+  function rememberScroll(scope) {
+    scope.addEventListener('click', function (e) {
+      if (!e.target.closest('a.card')) return;
+      try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY || window.pageYOffset)); } catch (err) {}
+    });
+  }
+  function restoreScroll() {
+    var entry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var y = null;
+    try { y = sessionStorage.getItem(SCROLL_KEY); } catch (err) {}
+    if (entry && entry.type === 'back_forward' && y !== null) { window.scrollTo(0, +y); return true; }
+    return false;
   }
 
   // =========================================================
@@ -224,20 +305,19 @@
   var catId = document.body.dataset.catalog;
   if (catId) {
     var host = document.getElementById('directionProducts');
-    fetch('data/products.json', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+    loadCatalog()
       .then(function (d) {
-        var cat = (d.categories || []).find(function (c) { return c.id === catId; }) || { subcategories: [] };
-        var items = (d.products || []).filter(function (p) { return p.category === catId; });
-        var subs = cat.subcategories && cat.subcategories.length
-          ? cat.subcategories
-          : items.map(function (p) { return p.subcategory; }).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+        var cat = d.categories.find(function (c) { return c.id === catId; }) || { subcategories: [] };
+        var items = d.products.filter(function (p) { return p.category === catId; });
+        // подкатегориите от направлението + такива, които ги има само в продуктите
+        var subs = (cat.subcategories || []).concat(items.map(function (p) { return p.subcategory || 'Други'; }))
+          .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
 
         var html = '';
         subs.forEach(function (sub) {
-          var group = items.filter(function (p) { return p.subcategory === sub; });
+          var group = items.filter(function (p) { return (p.subcategory || 'Други') === sub; });
           if (!group.length) return;
-          var id = 'sub-' + sub.replace(/\s+/g, '-');
+          var id = subAnchor(sub);
           html += '<div class="subsec" id="' + escapeAttr(id) + '">' +
             '<h2 class="subsec__title reveal" data-reveal>' + escapeHtml(sub) + '</h2>' +
             '<div class="grid">' + group.map(cardHTML).join('') + '</div></div>';
@@ -252,17 +332,22 @@
         // навигация по подкатегории (чипове)
         var chipsHost = document.getElementById('subChips');
         if (chipsHost) {
-          var present = subs.filter(function (sub) { return items.some(function (p) { return p.subcategory === sub; }); });
+          var present = subs.filter(function (sub) { return items.some(function (p) { return (p.subcategory || 'Други') === sub; }); });
           chipsHost.innerHTML = present.map(function (sub) {
-            return '<a class="chip" href="#sub-' + escapeAttr(sub.replace(/\s+/g, '-')) + '">' + escapeHtml(sub) + '</a>';
+            return '<a class="chip" href="#' + escapeAttr(subAnchor(sub)) + '">' + escapeHtml(sub) + '</a>';
           }).join('');
         }
 
         observeReveals(host);
-        bindCards(host);
+        rememberScroll(host);
+        // връщане с „Назад“ от продукт → същото място; линк към подкатегория (#sub-…) → към нея
+        if (!restoreScroll() && location.hash) {
+          var target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+          if (target) target.scrollIntoView();
+        }
       })
       .catch(function () {
-        host.innerHTML = '<p class="catalog__empty">Каталогът не може да се зареди в момента.</p>';
+        host.innerHTML = '<p class="catalog__empty">Каталогът не може да се зареди в момента. Обадете ни се на ' + SITE.phone1 + '.</p>';
       });
   }
 
@@ -271,16 +356,210 @@
   // =========================================================
   var featHost = document.getElementById('featuredProducts');
   if (featHost) {
-    fetch('data/products.json', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+    loadCatalog()
       .then(function (d) {
-        var feat = (d.products || []).filter(function (p) { return p.featured; }).slice(0, 4);
-        if (!feat.length) feat = (d.products || []).slice(0, 4);
+        var feat = d.products.filter(function (p) { return p.featured; }).slice(0, 4);
+        if (!feat.length) feat = d.products.slice(0, 4);
         featHost.innerHTML = feat.map(cardHTML).join('');
         observeReveals(featHost);
-        bindCards(featHost);
       })
       .catch(function () {});
+  }
+
+  // =========================================================
+  //  Страница на продукт (produkt.html?p=…)
+  // =========================================================
+  var productHost = document.getElementById('productView');
+  if (productHost) {
+    var wanted = new URLSearchParams(location.search).get('p') || '';
+    loadCatalog()
+      .then(function (d) {
+        var p = d.products.find(function (x) { return x._slug === wanted; });
+        if (!p) { renderMissing(); return; }
+        var cat = d.categories.find(function (c) { return c.id === p.category; }) || { id: '', name: '' };
+        renderProduct(p, cat, d.products);
+      })
+      .catch(function () {
+        productHost.innerHTML = '<p class="catalog__empty">Продуктът не може да се зареди в момента. Обадете ни се на ' +
+          '<a href="tel:' + SITE.phone1tel + '">' + SITE.phone1 + '</a>.</p>';
+      });
+  }
+
+  function renderMissing() {
+    document.title = 'Продуктът не е намерен — Георгиев Стил';
+    productHost.innerHTML =
+      '<div class="pmissing">' +
+        '<h1>Този продукт вече не е в каталога</h1>' +
+        '<p>Може да е преименуван или вече да не се предлага. Разгледайте мебелите или ни се обадете.</p>' +
+        '<div class="pmissing__actions"><a class="btn btn--solid" href="mebeli.html">Към мебелите</a>' +
+        '<a class="link-arrow" href="tel:' + SITE.phone1tel + '">' + SITE.phone1 + '</a></div>' +
+      '</div>';
+  }
+
+  function renderProduct(p, cat, all) {
+    var imgs = productImages(p);
+    var catPage = cat.id ? cat.id + '.html' : 'index.html';
+    var sub = p.subcategory || '';
+    var price = p.price && String(p.price).trim() && !/^по запитване$/i.test(String(p.price).trim()) ? p.price : '';
+    var ask = 'kontakti.html?produkt=' + encodeURIComponent(p.title) + (cat.name ? '&napravlenie=' + encodeURIComponent(cat.name) : '');
+
+    // заглавие и описание на страницата (за таба на браузъра и при споделяне)
+    document.title = p.title + ' — Георгиев Стил, Провадия';
+    var plain = String(p.desc || '').replace(/\s+/g, ' ').trim();
+    setMeta('description', plain ? plain.slice(0, 155) + (plain.length > 155 ? '…' : '') : p.title + ' от Георгиев Стил ЕООД, Провадия.');
+    var canon = document.querySelector('link[rel="canonical"]');
+    if (canon) canon.href = 'https://www.georgievstil.com/' + productUrl(p);
+    var navLink = document.querySelector('.nav__menu a[href="' + catPage + '"]');
+    if (navLink) navLink.classList.add('is-active');
+
+    var gallery = '';
+    if (imgs.length) {
+      gallery =
+        '<div class="gallery" id="gallery">' +
+          '<div class="gallery__stage">' +
+            '<button type="button" class="gallery__zoom" id="galleryZoom" aria-label="Отвори снимката на цял екран">' +
+              '<img id="galleryMain" src="' + escapeAttr(imgs[0]) + '" alt="' + escapeAttr(p.title) + '" />' +
+            '</button>' +
+            (imgs.length > 1
+              ? '<button type="button" class="gallery__nav gallery__nav--prev" id="galleryPrev" aria-label="Предишна снимка">‹</button>' +
+                '<button type="button" class="gallery__nav gallery__nav--next" id="galleryNext" aria-label="Следваща снимка">›</button>' +
+                '<span class="gallery__count" id="galleryCount" aria-live="polite">1 от ' + imgs.length + '</span>'
+              : '') +
+          '</div>' +
+          (imgs.length > 1
+            ? '<div class="gallery__thumbs">' + imgs.map(function (src, i) {
+                return '<button type="button" class="gallery__thumb' + (i === 0 ? ' is-active' : '') + '" data-i="' + i + '"' +
+                  (i === 0 ? ' aria-current="true"' : '') + ' aria-label="Снимка ' + (i + 1) + ' от ' + imgs.length + '">' +
+                  '<img src="' + escapeAttr(src) + '" alt="" loading="lazy" /></button>';
+              }).join('') + '</div>'
+            : '') +
+        '</div>';
+    }
+
+    var related = all.filter(function (x) { return x !== p && x.category === p.category && (x.subcategory || '') === sub; });
+    var at = all.indexOf(p);
+    // първо следващите след текущия, после от началото — така всеки продукт показва различни „съседи“
+    related.sort(function (a, b) {
+      var ia = all.indexOf(a), ib = all.indexOf(b);
+      return ((ia - at + all.length) % all.length) - ((ib - at + all.length) % all.length);
+    });
+    related = related.slice(0, 3);
+
+    productHost.innerHTML =
+      '<nav class="crumbs crumbs--dark" aria-label="Къде се намирате">' +
+        '<a href="index.html">Начало</a><span>/</span>' +
+        (cat.name ? '<a href="' + catPage + '">' + escapeHtml(cat.name) + '</a><span>/</span>' : '') +
+        (sub ? '<a href="' + catPage + '#' + escapeAttr(subAnchor(sub)) + '">' + escapeHtml(sub) + '</a>' : '') +
+      '</nav>' +
+      '<div class="product">' +
+        gallery +
+        '<div class="product__info">' +
+          '<h1 class="product__title">' + escapeHtml(p.title) + '</h1>' +
+          '<p class="product__price">' + (price ? escapeHtml(price) : 'Цена по запитване') + '</p>' +
+          '<div class="product__actions">' +
+            '<a class="btn btn--solid" href="' + escapeAttr(ask) + '">Изпрати запитване</a>' +
+            '<a class="product__call" href="tel:' + SITE.phone1tel + '">или се обадете: <b>' + SITE.phone1 + '</b></a>' +
+          '</div>' +
+          (p.desc ? '<div class="pdesc">' + formatDesc(p.desc) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      (related.length
+        ? '<section class="related">' +
+            '<div class="related__head"><h2>Още от „' + escapeHtml(sub || cat.name) + '“</h2>' +
+            '<a class="link-arrow" href="' + catPage + (sub ? '#' + escapeAttr(subAnchor(sub)) : '') + '">Виж всички</a></div>' +
+            '<div class="grid">' + related.map(cardHTML).join('') + '</div>' +
+          '</section>'
+        : '');
+
+    observeReveals(productHost);
+    if (imgs.length) bindGallery(imgs, p.title);
+  }
+
+  function bindGallery(imgs, title) {
+    var main = document.getElementById('galleryMain');
+    var count = document.getElementById('galleryCount');
+    var thumbs = productHost.querySelectorAll('.gallery__thumb');
+    var cur = 0;
+    function show(i) {
+      var n = imgs.length;
+      cur = ((i % n) + n) % n;
+      if (main.getAttribute('src') !== imgs[cur]) {
+        main.classList.add('is-swapping');
+        main.onload = main.onerror = function () { main.classList.remove('is-swapping'); };
+        main.src = imgs[cur];
+      }
+      if (count) count.textContent = (cur + 1) + ' от ' + n;
+      thumbs.forEach(function (t, k) {
+        t.classList.toggle('is-active', k === cur);
+        if (k === cur) { t.setAttribute('aria-current', 'true'); } else { t.removeAttribute('aria-current'); }
+      });
+      // на телефон миниатюрите са в лента — активната да се вижда
+      var strip = thumbs[cur] && thumbs[cur].parentNode;
+      if (strip && strip.scrollWidth > strip.clientWidth) {
+        strip.scrollTo({ left: thumbs[cur].offsetLeft - 40, behavior: reduce ? 'auto' : 'smooth' }); // лентата е position:relative
+      }
+      if (n > 1) { var pre = new Image(); pre.src = imgs[(cur + 1) % n]; } // следващата да е готова
+    }
+    document.getElementById('galleryZoom').addEventListener('click', function () {
+      openLightbox(imgs, cur, title, show);
+    });
+    if (imgs.length < 2) return;
+    document.getElementById('galleryPrev').addEventListener('click', function () { show(cur - 1); });
+    document.getElementById('galleryNext').addEventListener('click', function () { show(cur + 1); });
+    thumbs.forEach(function (t) { t.addEventListener('click', function () { show(+t.dataset.i); }); });
+    onSwipe(productHost.querySelector('.gallery__stage'), function (dir) { show(cur + dir); });
+    document.addEventListener('keydown', function (e) {
+      if (isLightboxOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
+      if (e.key === 'ArrowLeft') show(cur - 1);
+      else if (e.key === 'ArrowRight') show(cur + 1);
+    });
+    show(0);
+  }
+
+  // Описанието идва като обикновен текст от панела (често копиран от сайт на доставчик). Подреждаме го:
+  //  „Размери:“ (ред, завършващ на двоеточие)  → подзаглавие
+  //  „• …“, „- …“, „✔ …“                      → точка от списък
+  //  „Обща дължина: 230 см“                    → ред с размер/характеристика (празните редове между такива се прескачат)
+  //  поредица от кратки редове                 → списък; дълъг текст → абзац
+  function formatDesc(text) {
+    var tokens = String(text).replace(/\r\n?/g, '\n').split('\n').map(function (raw) {
+      var s = raw.trim();
+      if (!s) return { t: 'gap' };
+      var bullet = s.match(/^(?:[•●▪◦‣✔✓☑✅➤►▶→]️?\s*|[-–—*·]\s+)(.+)$/);
+      if (bullet) return { t: 'li', s: bullet[1] };
+      if (/:$/.test(s) && s.length <= 48) return { t: 'h', s: s.replace(/\s*:$/, '') };
+      if (s.length <= 110 && /^[^:]{1,40}:\s*\S/.test(s)) return { t: 'kv', s: s };
+      return { t: s.length <= 130 ? 'short' : 'p', s: s };
+    });
+    function nextReal(i) { for (var j = i + 1; j < tokens.length; j++) if (tokens[j].t !== 'gap') return tokens[j]; return { t: 'end' }; }
+    // „✔ Диван тройка“, последван от размери → подзаглавие на тези размери
+    tokens.forEach(function (tok, i) { if (tok.t === 'li' && tok.s.indexOf(':') < 0 && nextReal(i).t === 'kv') tok.t = 'h'; });
+
+    var html = '', inList = false, last = '';
+    function open() { if (!inList) { html += '<ul>'; inList = true; } }
+    function close() { if (inList) { html += '</ul>'; inList = false; } }
+    function kv(s) { var k = s.indexOf(':'); return '<span class="pdesc__k">' + escapeHtml(s.slice(0, k + 1)) + '</span> ' + escapeHtml(s.slice(k + 1).trim()); }
+    tokens.forEach(function (tok, i) {
+      if (tok.t === 'gap') {
+        if (!(inList && last === 'kv' && nextReal(i).t === 'kv')) close();
+        return;
+      }
+      var next = tokens[i + 1] || { t: 'gap' };
+      if (tok.t === 'h') { close(); html += '<h3>' + escapeHtml(tok.s) + '</h3>'; }
+      else if (tok.t === 'kv') { open(); html += '<li>' + kv(tok.s) + '</li>'; }
+      else if (tok.t === 'li' || (tok.t === 'short' && (inList || last === 'h' || /^(short|li|kv)$/.test(next.t)))) {
+        open(); html += '<li>' + escapeHtml(tok.s) + '</li>';
+      } else { close(); html += '<p>' + escapeHtml(tok.s) + '</p>'; }
+      last = tok.t;
+    });
+    close();
+    return html;
+  }
+
+  function setMeta(name, content) {
+    var m = document.querySelector('meta[name="' + name + '"]');
+    if (!m) { m = document.createElement('meta'); m.setAttribute('name', name); document.head.appendChild(m); }
+    m.setAttribute('content', content);
   }
 
   // ---- Year ----
@@ -289,6 +568,18 @@
   // ---- Form (на страница Контакти) ----
   var form = document.getElementById('quoteForm');
   if (form) {
+    // дошли от „Изпрати запитване“ на продукт → попълваме за кой продукт става дума
+    var qs = new URLSearchParams(location.search);
+    var askProduct = qs.get('produkt'), askType = qs.get('napravlenie');
+    if (askProduct) {
+      if (form.message && !form.message.value) form.message.value = 'Здравейте, интересувам се от „' + askProduct + '“.';
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden'; hidden.name = 'product'; hidden.value = askProduct;
+      form.appendChild(hidden);
+    }
+    if (askType && form.type) {
+      Array.prototype.forEach.call(form.type.options, function (o) { if (o.text === askType) form.type.value = o.value || o.text; });
+    }
     var note = document.getElementById('formNote');
     var btn = form.querySelector('button[type="submit"]');
     var btnText = btn ? btn.textContent : '';
