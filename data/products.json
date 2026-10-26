@@ -291,6 +291,10 @@
       "category": "mebeli",
       "subcategory": "Дивани",
       "image": "/assets/uploads/Screenshot_26.jpg",
+      "gallery": [
+        "/assets/uploads/Screenshot_27.jpg",
+        "/assets/uploads/Screenshot_28.jpg"
+      ],
       "desc": "Диван тройка Red velvet е част от специално подбрана за Вас селекция.\n\nРазмери:215/86/84\nФункция сън, ракла за багаж 110/180\nЛуксозна дамаска, здрава букова конструкция.",
       "price": "368 €",
       "featured": false
