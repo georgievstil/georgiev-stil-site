@@ -186,10 +186,18 @@
       "featured": true
     },
     {
-      "title": "Холова гарнитура 3+2+1",
+      "title": "Холова гарнитура 3+2+1 Summit",
       "category": "mebeli",
       "subcategory": "Дивани",
       "image": "/assets/uploads/summit-3.jpg",
+      "gallery": [
+        "/assets/uploads/summit-1.jpg",
+        "/assets/uploads/summit-4.jpg",
+        "/assets/uploads/summit-5.jpg",
+        "/assets/uploads/summit-6.jpg",
+        "/assets/uploads/summit-7.jpg",
+        "/assets/uploads/summit-2.jpg"
+      ],
       "desc": "Холова гарнитура Summit :\n\nМеханизъм за работа без усилие.\n\nУстойчива на усукване и огъване подсилена рамкова конструкция.\n\nУстойчив на ръжда и корозия поцинкован механизъм и обков.\n\nСтоманени намотки с вътрешна пружина с пълнеж от пяна.\n\nСъвременна тапицерия с изключителна кройка и фини детайли.\n\nНеобходим е минимален монтаж.",
       "price": "851,09 €",
       "featured": true
